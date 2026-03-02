@@ -8,7 +8,6 @@ import com.malinghan.madfs.util.FileUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +16,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @Slf4j
@@ -170,5 +172,39 @@ public class FileController {
         // 4. 流式输出文件内容
         FileUtils.output(file, response.getOutputStream());
         log.info("[DOWNLOAD] ===== 文件输出完成 =====");
+    }
+
+    /**
+     * 健康检查接口
+     * GET /health
+     */
+    @GetMapping("/health")
+    public Map<String, Object> health() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "UP");
+        result.put("node", config.getDownloadUrl());
+        result.put("storagePath", config.getUploadPath());
+        result.put("fileCount", FileUtils.countFiles(config.getUploadPath()));
+        result.put("syncBackup", config.isSyncBackup());
+        result.put("autoMd5", config.isAutoMd5());
+        return result;
+    }
+
+    /**
+     * 文件列表接口
+     * GET /list?page=0&size=20
+     */
+    @GetMapping("/list")
+    public Map<String, Object> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<String> files = FileUtils.listFiles(config.getUploadPath(), page, size);
+        long total = FileUtils.countFiles(config.getUploadPath());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("files", files);
+        return result;
     }
 }

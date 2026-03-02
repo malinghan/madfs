@@ -169,4 +169,38 @@ public class FileUtils {
         log.info("[FileUtils] 下载完成: {}, 大小: {} bytes",
                 dest.getAbsolutePath(), dest.length());
     }
+
+    /**
+     * 统计存储目录下的数据文件数量（排除 .meta 文件）
+     */
+    public static long countFiles(String uploadPath) {
+        try {
+            return Files.walk(new File(uploadPath).toPath())
+                    .filter(Files::isRegularFile)
+                    .filter(p -> !p.toString().endsWith(".meta"))
+                    .count();
+        } catch (IOException e) {
+            log.error("[FileUtils] 统计文件数量失败", e);
+            return -1;
+        }
+    }
+
+    /**
+     * 分页列出文件名（排除 .meta 文件）
+     */
+    public static java.util.List<String> listFiles(String uploadPath, int page, int size) {
+        try {
+            return Files.walk(new File(uploadPath).toPath())
+                    .filter(Files::isRegularFile)
+                    .filter(p -> !p.toString().endsWith(".meta"))
+                    .map(p -> p.getFileName().toString())
+                    .sorted()
+                    .skip((long) page * size)
+                    .limit(size)
+                    .collect(java.util.stream.Collectors.toList());
+        } catch (IOException e) {
+            log.error("[FileUtils] 列出文件失败", e);
+            return java.util.Collections.emptyList();
+        }
+    }
 }

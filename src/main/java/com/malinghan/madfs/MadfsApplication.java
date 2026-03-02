@@ -26,9 +26,15 @@ public class MadfsApplication {
     @Bean
     public ApplicationRunner runner(MadfsConfigProperties config) {
         return args -> {
-            log.info("[MadfsApplication] 初始化存储目录: {}", config.getPath());
             FileUtils.init(config.getPath());
-            log.info("[MadfsApplication] madfs started, storage: {}", config.getPath());
+            log.info("===== madfs 启动完成 =====");
+            log.info("存储路径:   {}", config.getUploadPath());
+            log.info("下载地址:   {}", config.getDownloadUrl());
+            log.info("备份地址:   {}", config.getBackupUrl());
+            log.info("消费者组:   {}", config.getGroup());
+            log.info("自动MD5:    {}", config.isAutoMd5());
+            log.info("HTTP备份:   {}", config.isSyncBackup());
+            log.info("=========================");
         };
     }
 

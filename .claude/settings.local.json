@@ -8,7 +8,9 @@
       "Bash(lsof -i :8090 | grep LISTEN)",
       "Bash(mvn clean compile)",
       "Bash(lsof -ti :8090 | xargs kill -9 2>/dev/null || true\nsleep 2\necho \"端口 8090 已清理\")",
-      "Bash(mvn compile 2>&1)"
+      "Bash(mvn compile 2>&1)",
+      "Bash(sleep 15 && curl -s http://localhost:8090/health 2>&1)",
+      "Bash(curl -s \"http://localhost:8090/list?page=0&size=5\" 2>&1)"
     ]
   }
 }
