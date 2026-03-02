@@ -12,6 +12,8 @@ public class MadfsConfigProperties {
     // 对应 application.yml 中的 madfs.path
     // ${user.home} 会被替换为当前用户主目录
     private String path;
+    private String downloadUrl;   // 本节点对外下载地址，如 "http://localhost:8090/download"
+    private boolean autoMd5 = true;  // 是否自动计算并存储 MD5，默认开启
 
     /**
      * 上传存储路径，默认与 path 相同

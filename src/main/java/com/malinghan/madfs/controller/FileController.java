@@ -1,9 +1,11 @@
 package com.malinghan.madfs.controller;
 
+import com.malinghan.madfs.FileMeta.FileMeta;
 import com.malinghan.madfs.config.MadfsConfigProperties;
 import com.malinghan.madfs.util.FileUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,7 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 
 @RestController
 @Slf4j
@@ -21,36 +25,64 @@ public class FileController {
     @Autowired
     private MadfsConfigProperties config;
 
-    /**
-     * 文件上传接口
-     * POST /upload
-     * Content-Type: multipart/form-data
-     * 参数: file (MultipartFile)
-     * 返回: UUID 文件名字符串
-     */
     @PostMapping("/upload")
     public String upload(@RequestParam MultipartFile file) throws IOException {
         log.info("[UPLOAD] ===== 收到上传请求 =====");
         log.info("[UPLOAD] 原始文件名: {}, 大小: {} bytes",
                 file.getOriginalFilename(), file.getSize());
 
-        // 1. 生成 UUID 文件名
+        // [v2.0] 生成 UUID 文件名、计算子目录、写入文件
         String uuidName = FileUtils.getUUIDFile(file.getOriginalFilename());
-        log.info("[UPLOAD] 生成UUID文件名: {}", uuidName);
-
-        // 2. 计算子目录
         String subdir = FileUtils.getSubdir(uuidName);
-
-        // 3. 构建目标文件路径
         File dest = new File(config.getUploadPath() + "/" + subdir + "/" + uuidName);
-        log.info("[UPLOAD] 存储路径: subdir={}, dest={}", subdir, dest.getAbsolutePath());
-
-        // 4. 写入文件
         file.transferTo(dest);
         log.info("[UPLOAD] 文件写入完成: {}", dest.getAbsolutePath());
 
+        // [v4.0 新增] 构建 FileMeta
+        FileMeta meta = new FileMeta();
+        meta.setName(uuidName);
+        meta.setOriginalFilename(file.getOriginalFilename());
+        meta.setSize(file.getSize());
+        meta.setDownloadUrl(config.getDownloadUrl());
+
+        // [v4.0 新增] 自动计算 MD5
+        if (config.isAutoMd5()) {
+            String md5 = DigestUtils.md5Hex(new FileInputStream(dest));
+            meta.getTags().put("md5", md5);
+            log.info("[UPLOAD] 计算MD5: {}", md5);
+        }
+
+        // [v4.0 新增] 写入 .meta 文件
+        FileUtils.writeMeta(dest, meta);
+
         log.info("[UPLOAD] ===== 上传完成, 返回文件名: {} =====", uuidName);
         return uuidName;
+    }
+
+    // download() 方法保持不变...
+
+    /**
+     * 元数据查询接口
+     * GET /meta?name=xxx
+     * 返回对应的 .meta 文件内容（JSON 字符串）
+     */
+    @GetMapping("/meta")
+    public String meta(@RequestParam String name) throws IOException {
+        log.info("[META] 查询元数据, name={}", name);
+
+        String subdir = FileUtils.getSubdir(name);
+        File dataFile = new File(config.getUploadPath() + "/" + subdir + "/" + name);
+        File metaFile = new File(dataFile.getAbsolutePath() + ".meta");
+
+        log.info("[META] Meta文件路径: {}", metaFile.getAbsolutePath());
+
+        if (!metaFile.exists()) {
+            return "{}";  // 文件不存在返回空 JSON
+        }
+
+        String content = Files.readString(metaFile.toPath());
+        log.info("[META] 返回内容: {}", content);
+        return content;
     }
 
     // upload() 方法保持不变...

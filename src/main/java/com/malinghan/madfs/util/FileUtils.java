@@ -1,11 +1,14 @@
 package com.malinghan.madfs.util;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.malinghan.madfs.FileMeta.FileMeta;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.UUID;
 
 @Slf4j
@@ -115,5 +118,29 @@ public class FileUtils {
             }
         }
         // out 由调用方（Spring）负责关闭，这里不关闭
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /**
+     * 将 FileMeta 序列化为 JSON，写入 {dataFile}.meta 文件
+     *
+     * 示例: dataFile = ~/madfs/3a/3a9c....jpg
+     *       写入    = ~/madfs/3a/3a9c....jpg.meta
+     */
+    public static void writeMeta(File dataFile, FileMeta meta) throws IOException {
+        File metaFile = new File(dataFile.getAbsolutePath() + ".meta");
+        String json = MAPPER.writeValueAsString(meta);
+        Files.writeString(metaFile.toPath(), json);
+        log.info("[FileUtils] 写入Meta文件: {}", metaFile.getAbsolutePath());
+    }
+
+    /**
+     * 从 .meta 文件读取 FileMeta 对象
+     */
+    public static FileMeta readMeta(File dataFile) throws IOException {
+        File metaFile = new File(dataFile.getAbsolutePath() + ".meta");
+        String json = Files.readString(metaFile.toPath());
+        return MAPPER.readValue(json, FileMeta.class);
     }
 }

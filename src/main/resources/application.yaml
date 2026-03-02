@@ -10,4 +10,6 @@ spring:
       max-request-size: 100MB
 madfs:
   path: ${user.home}/madfs
+  downloadUrl: http://localhost:8090/download   # ???????
+  autoMd5: true                                  # ???? MD5
 
