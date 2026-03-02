@@ -1,6 +1,6 @@
 package com.malinghan.madfs.sync;
 
-import com.malinghan.madfs.FileMeta.FileMeta;
+import com.malinghan.madfs.model.FileMeta;
 import com.malinghan.madfs.config.MadfsConfigProperties;
 import com.malinghan.madfs.util.FileUtils;
 import lombok.extern.slf4j.Slf4j;

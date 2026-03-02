@@ -20,6 +20,9 @@ public class MadfsConfigProperties {
     private boolean syncBackup = false;   // 是否启用 HTTP 同步备份，默认关闭
     private String backupUrl;             // 备份节点上传地址，如 "http://localhost:8091/upload"
 
+    // 分块大小，默认 4MB
+    private int blockSize = 4 * 1024 * 1024;
+
     /**
      * 上传存储路径，默认与 path 相同
      * 单独暴露是为了后续可能区分"上传临时目录"和"最终存储目录"

@@ -1,7 +1,9 @@
 package com.malinghan.madfs.controller;
 
-import com.malinghan.madfs.FileMeta.FileMeta;
+import com.malinghan.madfs.model.BlockMeta;
+import com.malinghan.madfs.model.FileMeta;
 import com.malinghan.madfs.config.MadfsConfigProperties;
+import com.malinghan.madfs.service.BlockStorageService;
 import com.malinghan.madfs.sync.HttpSyncer;
 import com.malinghan.madfs.sync.MQSyncer;
 import com.malinghan.madfs.util.FileUtils;
@@ -32,6 +34,9 @@ public class FileController {
 
     @Autowired
     private HttpSyncer httpSyncer;
+
+    @Autowired
+    private BlockStorageService blockStorageService;
 
     @PostMapping("/upload")
     public String upload(@RequestParam MultipartFile file,
@@ -139,41 +144,6 @@ public class FileController {
         return content;
     }
 
-    // upload() 方法保持不变...
-
-    /**
-     * 文件下载接口
-     * GET /download?name=xxx
-     * 直接向 HttpServletResponse 写入文件内容
-     */
-    @GetMapping("/download")
-    public void download(@RequestParam String name,
-                         HttpServletResponse response) throws IOException {
-        log.info("[DOWNLOAD] ===== 收到下载请求, name={} =====", name);
-
-        // 1. 定位文件
-        String subdir = FileUtils.getSubdir(name);
-        File file = new File(config.getUploadPath() + "/" + subdir + "/" + name);
-        log.info("[DOWNLOAD] 文件路径: {}, 存在: {}, 大小: {} bytes",
-                file.getAbsolutePath(), file.exists(), file.length());
-
-        // 2. 文件不存在时返回 404
-        if (!file.exists()) {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            return;
-        }
-
-        // 3. 设置响应头
-        String mimeType = FileUtils.getMimeType(name);
-        response.setContentType(mimeType);
-        response.setContentLengthLong(file.length());
-        log.info("[DOWNLOAD] MIME类型: {}", mimeType);
-
-        // 4. 流式输出文件内容
-        FileUtils.output(file, response.getOutputStream());
-        log.info("[DOWNLOAD] ===== 文件输出完成 =====");
-    }
-
     /**
      * 健康检查接口
      * GET /health
@@ -206,5 +176,30 @@ public class FileController {
         result.put("size", size);
         result.put("files", files);
         return result;
+    }
+
+    // 1. 初始化上传
+    @PostMapping("/upload/init")
+    public Map<String, Object> initUpload(@RequestParam String filename,
+                                          @RequestParam long size) {
+        return blockStorageService.initUpload(filename, size);
+    }
+
+    // 2. 上传单块
+    @PostMapping("/upload/chunk")
+    public BlockMeta uploadChunk(@RequestParam String uploadId,
+                                 @RequestParam int index,
+                                 @RequestParam String filename,
+                                 @RequestBody byte[] data) throws IOException {
+        return blockStorageService.uploadChunk(uploadId, index, data, filename);
+    }
+
+    // 3. 完成上传
+    @PostMapping("/upload/complete")
+    public FileMeta completeUpload(@RequestParam String uploadId,
+                                   @RequestParam String filename,
+                                   @RequestParam String originalFilename,
+                                   @RequestParam long size) throws IOException {
+        return blockStorageService.completeUpload(uploadId, filename, originalFilename, size);
     }
 }
