@@ -2,10 +2,12 @@ package com.malinghan.madfs.controller;
 
 import com.malinghan.madfs.FileMeta.FileMeta;
 import com.malinghan.madfs.config.MadfsConfigProperties;
+import com.malinghan.madfs.sync.MQSyncer;
 import com.malinghan.madfs.util.FileUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +26,9 @@ public class FileController {
 
     @Autowired
     private MadfsConfigProperties config;
+
+    @Autowired
+    private MQSyncer mqSyncer;
 
     @PostMapping("/upload")
     public String upload(@RequestParam MultipartFile file) throws IOException {
@@ -54,6 +59,10 @@ public class FileController {
 
         // [v4.0 新增] 写入 .meta 文件
         FileUtils.writeMeta(dest, meta);
+
+        // [v5.0 新增] 发送 MQ 消息，通知其他节点同步
+        mqSyncer.sync(meta);
+        log.info("[UPLOAD] 已发送MQ同步消息");
 
         log.info("[UPLOAD] ===== 上传完成, 返回文件名: {} =====", uuidName);
         return uuidName;

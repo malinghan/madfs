@@ -4,10 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.malinghan.madfs.FileMeta.FileMeta;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.UUID;
 
@@ -142,5 +140,33 @@ public class FileUtils {
         File metaFile = new File(dataFile.getAbsolutePath() + ".meta");
         String json = Files.readString(metaFile.toPath());
         return MAPPER.readValue(json, FileMeta.class);
+    }
+
+    /**
+     * 从远端 URL 下载文件到本地
+     * 使用 16KB 缓冲区流式写入，避免大文件占用大量内存
+     *
+     * @param url   远端下载地址，如 "http://localhost:8090/download?name=3a9c....jpg"
+     * @param dest  本地目标文件
+     */
+    public static void download(String url, File dest) throws IOException {
+        log.info("[FileUtils] 从远端下载文件: {} => {}", url, dest.getAbsolutePath());
+
+        // 确保父目录存在
+        dest.getParentFile().mkdirs();
+
+        URL remoteUrl = new URL(url);
+        byte[] buffer = new byte[16 * 1024];
+        int bytesRead;
+
+        try (InputStream in = remoteUrl.openStream();
+             FileOutputStream out = new FileOutputStream(dest)) {
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+        }
+
+        log.info("[FileUtils] 下载完成: {}, 大小: {} bytes",
+                dest.getAbsolutePath(), dest.length());
     }
 }

@@ -7,7 +7,8 @@
       "Bash(curl -X POST http://localhost:8090/upload -F \"file=@/tmp/test.txt\" 2>&1)",
       "Bash(lsof -i :8090 | grep LISTEN)",
       "Bash(mvn clean compile)",
-      "Bash(lsof -ti :8090 | xargs kill -9 2>/dev/null || true\nsleep 2\necho \"端口 8090 已清理\")"
+      "Bash(lsof -ti :8090 | xargs kill -9 2>/dev/null || true\nsleep 2\necho \"端口 8090 已清理\")",
+      "Bash(mvn compile 2>&1)"
     ]
   }
 }
