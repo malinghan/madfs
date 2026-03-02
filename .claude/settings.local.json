@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/malinghan/project/madfs/v*.md)"
+    ]
+  }
+}
