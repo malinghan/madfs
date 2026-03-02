@@ -3,6 +3,9 @@ package com.malinghan.madfs.util;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.UUID;
 
 @Slf4j
@@ -65,5 +68,52 @@ public class FileUtils {
         }
 
         log.info("[FileUtils] 子目录初始化完成: 共256个桶, 新建{}个", created);
+    }
+
+    /**
+     * 根据文件名推断 MIME 类型
+     * 取文件扩展名，映射到对应的 Content-Type
+     */
+    public static String getMimeType(String filename) {
+        if (filename == null) return "application/octet-stream";
+
+        String lower = filename.toLowerCase();
+
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png"))  return "image/png";
+        if (lower.endsWith(".gif"))  return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".txt"))  return "text/plain";
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return "text/html";
+        if (lower.endsWith(".css"))  return "text/css";
+        if (lower.endsWith(".js"))   return "application/javascript";
+        if (lower.endsWith(".json")) return "application/json";
+        if (lower.endsWith(".xml"))  return "application/xml";
+        if (lower.endsWith(".pdf"))  return "application/pdf";
+        if (lower.endsWith(".zip"))  return "application/zip";
+        if (lower.endsWith(".mp4"))  return "video/mp4";
+        if (lower.endsWith(".mp3"))  return "audio/mpeg";
+
+        // 未知类型：通用二进制流，浏览器会触发下载
+        return "application/octet-stream";
+    }
+
+    /**
+     * 流式输出文件内容到 OutputStream
+     * 使用 16KB 缓冲区，避免大文件占用大量内存
+     *
+     * @param file  要输出的文件
+     * @param out   目标输出流（通常是 HttpServletResponse.getOutputStream()）
+     */
+    public static void output(File file, OutputStream out) throws IOException {
+        byte[] buffer = new byte[16 * 1024];  // 16KB 缓冲区
+        int bytesRead;
+
+        try (FileInputStream fis = new FileInputStream(file)) {
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+        }
+        // out 由调用方（Spring）负责关闭，这里不关闭
     }
 }

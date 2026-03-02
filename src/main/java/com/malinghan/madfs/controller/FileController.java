@@ -2,8 +2,10 @@ package com.malinghan.madfs.controller;
 
 import com.malinghan.madfs.config.MadfsConfigProperties;
 import com.malinghan.madfs.util.FileUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,5 +51,40 @@ public class FileController {
 
         log.info("[UPLOAD] ===== 上传完成, 返回文件名: {} =====", uuidName);
         return uuidName;
+    }
+
+    // upload() 方法保持不变...
+
+    /**
+     * 文件下载接口
+     * GET /download?name=xxx
+     * 直接向 HttpServletResponse 写入文件内容
+     */
+    @GetMapping("/download")
+    public void download(@RequestParam String name,
+                         HttpServletResponse response) throws IOException {
+        log.info("[DOWNLOAD] ===== 收到下载请求, name={} =====", name);
+
+        // 1. 定位文件
+        String subdir = FileUtils.getSubdir(name);
+        File file = new File(config.getUploadPath() + "/" + subdir + "/" + name);
+        log.info("[DOWNLOAD] 文件路径: {}, 存在: {}, 大小: {} bytes",
+                file.getAbsolutePath(), file.exists(), file.length());
+
+        // 2. 文件不存在时返回 404
+        if (!file.exists()) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        // 3. 设置响应头
+        String mimeType = FileUtils.getMimeType(name);
+        response.setContentType(mimeType);
+        response.setContentLengthLong(file.length());
+        log.info("[DOWNLOAD] MIME类型: {}", mimeType);
+
+        // 4. 流式输出文件内容
+        FileUtils.output(file, response.getOutputStream());
+        log.info("[DOWNLOAD] ===== 文件输出完成 =====");
     }
 }
