@@ -13,6 +13,8 @@ madfs:
   downloadUrl: http://localhost:8090/download   # ???????
   autoMd5: true                                  # ???? MD5
   group: C8090                    # ???????????
+  syncBackup: false                              # ???? HTTP ????
+  backupUrl: http://localhost:8091/upload       # ??????
 rocketmq:
   name-server: localhost:9876     # RocketMQ NameServer ??
   producer:

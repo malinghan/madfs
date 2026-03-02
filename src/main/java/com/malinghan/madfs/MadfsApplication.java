@@ -8,6 +8,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 @EnableConfigurationProperties(MadfsConfigProperties.class)
@@ -29,5 +30,11 @@ public class MadfsApplication {
             FileUtils.init(config.getPath());
             log.info("[MadfsApplication] madfs started, storage: {}", config.getPath());
         };
+    }
+
+    // 在 MadfsApplication 或单独的配置类中添加
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }

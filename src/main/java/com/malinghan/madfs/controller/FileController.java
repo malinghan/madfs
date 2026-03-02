@@ -2,6 +2,7 @@ package com.malinghan.madfs.controller;
 
 import com.malinghan.madfs.FileMeta.FileMeta;
 import com.malinghan.madfs.config.MadfsConfigProperties;
+import com.malinghan.madfs.sync.HttpSyncer;
 import com.malinghan.madfs.sync.MQSyncer;
 import com.malinghan.madfs.util.FileUtils;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,10 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -30,42 +28,87 @@ public class FileController {
     @Autowired
     private MQSyncer mqSyncer;
 
+    @Autowired
+    private HttpSyncer httpSyncer;
+
     @PostMapping("/upload")
-    public String upload(@RequestParam MultipartFile file) throws IOException {
+    public String upload(@RequestParam MultipartFile file,
+                         @RequestHeader(value = "X-Filename", required = false) String xFilename,
+                         @RequestHeader(value = "X-Orig-Filename", required = false) String xOrigFilename)
+            throws IOException {
+
         log.info("[UPLOAD] ===== 收到上传请求 =====");
-        log.info("[UPLOAD] 原始文件名: {}, 大小: {} bytes",
+        log.info("[UPLOAD] 原始文件名: {}, 文件大小: {} bytes",
                 file.getOriginalFilename(), file.getSize());
 
-        // [v2.0] 生成 UUID 文件名、计算子目录、写入文件
-        String uuidName = FileUtils.getUUIDFile(file.getOriginalFilename());
-        String subdir = FileUtils.getSubdir(uuidName);
-        File dest = new File(config.getUploadPath() + "/" + subdir + "/" + uuidName);
+        // [v6.0 新增] 检测是否为同步请求
+        String filename;
+        String originalFilename;
+        boolean needSync;
+
+        if (xFilename != null && !xFilename.isEmpty()) {
+            // 同步请求：使用请求头中的文件名
+            filename = xFilename;
+            originalFilename = xOrigFilename != null ? xOrigFilename : file.getOriginalFilename();
+            needSync = false;  // 不再触发二次同步
+            log.info("[UPLOAD] 检测到 X-Filename 头: {}", xFilename);
+            log.info("[UPLOAD] 主从同步上传 => X-Orig-Filename: {}", originalFilename);
+            log.info("[UPLOAD] 主从同步请求, 无需再次同步");
+        } else {
+            // 普通上传：生成 UUID 文件名
+            filename = FileUtils.getUUIDFile(file.getOriginalFilename());
+            originalFilename = file.getOriginalFilename();
+            needSync = true;
+            log.info("[UPLOAD] 普通上传 => 生成UUID文件名: {}, needSync=true", filename);
+        }
+
+        // [v2.0] 计算子目录、写入文件
+        String subdir = FileUtils.getSubdir(filename);
+        File dest = new File(config.getUploadPath() + "/" + subdir + "/" + filename);
         file.transferTo(dest);
         log.info("[UPLOAD] 文件写入完成: {}", dest.getAbsolutePath());
 
-        // [v4.0 新增] 构建 FileMeta
+        // [v4.0] 构建 FileMeta、计算 MD5、写入 .meta
         FileMeta meta = new FileMeta();
-        meta.setName(uuidName);
-        meta.setOriginalFilename(file.getOriginalFilename());
+        meta.setName(filename);
+        meta.setOriginalFilename(originalFilename);
         meta.setSize(file.getSize());
         meta.setDownloadUrl(config.getDownloadUrl());
 
-        // [v4.0 新增] 自动计算 MD5
         if (config.isAutoMd5()) {
             String md5 = DigestUtils.md5Hex(new FileInputStream(dest));
             meta.getTags().put("md5", md5);
             log.info("[UPLOAD] 计算MD5: {}", md5);
         }
 
-        // [v4.0 新增] 写入 .meta 文件
         FileUtils.writeMeta(dest, meta);
 
-        // [v5.0 新增] 发送 MQ 消息，通知其他节点同步
-        mqSyncer.sync(meta);
-        log.info("[UPLOAD] 已发送MQ同步消息");
+        // [v6.0 新增] 根据配置选择同步策略
+        if (needSync) {
+            if (config.isSyncBackup()) {
+                // 尝试 HTTP 同步
+                log.info("[UPLOAD] 需要同步, syncBackup=true");
+                log.info("[UPLOAD] 尝试HTTP同步 => backupUrl: {}", config.getBackupUrl());
 
-        log.info("[UPLOAD] ===== 上传完成, 返回文件名: {} =====", uuidName);
-        return uuidName;
+                boolean success = httpSyncer.sync(dest, config.getBackupUrl(), originalFilename);
+
+                if (success) {
+                    log.info("[UPLOAD] HTTP同步成功");
+                } else {
+                    // HTTP 失败，降级为 MQ
+                    log.warn("[UPLOAD] HTTP同步失败, 降级为MQ异步补偿");
+                    mqSyncer.sync(meta);
+                }
+            } else {
+                // 直接走 MQ 异步同步
+                log.info("[UPLOAD] 需要同步, syncBackup=false");
+                log.info("[UPLOAD] 直接走MQ异步同步");
+                mqSyncer.sync(meta);
+            }
+        }
+
+        log.info("[UPLOAD] ===== 上传完成, 返回文件名: {} =====", filename);
+        return filename;
     }
 
     // download() 方法保持不变...
