@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls /Users/malinghan/project/madfs/v*.md)"
+      "Bash(ls /Users/malinghan/project/madfs/v*.md)",
+      "Bash(curl -X POST http://localhost:8080/upload -F \"file=@/tmp/test.txt\")",
+      "Bash(pkill -f \"spring-boot:run\" || true\nsleep 2\necho \"应用已停止\")",
+      "Bash(curl -X POST http://localhost:8090/upload -F \"file=@/tmp/test.txt\" 2>&1)",
+      "Bash(lsof -i :8090 | grep LISTEN)"
     ]
   }
 }

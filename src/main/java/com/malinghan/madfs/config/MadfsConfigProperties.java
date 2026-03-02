@@ -13,4 +13,12 @@ public class MadfsConfigProperties {
     // ${user.home} 会被替换为当前用户主目录
     private String path;
 
+    /**
+     * 上传存储路径，默认与 path 相同
+     * 单独暴露是为了后续可能区分"上传临时目录"和"最终存储目录"
+     */
+    public String getUploadPath() {
+        return path;  // 当前版本直接返回 path
+    }
+
 }

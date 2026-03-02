@@ -1,8 +1,13 @@
 server:
-  port: 8080
+  port: 8090
 spring:
   application:
     name: madfs
+  # ?? multipart ????
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
 madfs:
   path: ${user.home}/madfs
 
